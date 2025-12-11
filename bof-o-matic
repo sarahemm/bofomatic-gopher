@@ -1,0 +1,106 @@
+#!/usr/bin/ruby
+
+require 'bofomatic'
+
+URL="http://bof-o-matic.sen.cx"
+BOM_APIKEY="PUT YOUR APIKEY HERE"
+
+query_string = ENV['QUERY_STRING']
+@this_host = ENV['SERVER_HOST']
+@this_port = ENV['SERVER_PORT']
+@selector = ENV['SELECTOR'].split('?')[0]
+
+def gopher_title(title)
+  gopher_info title
+  gopher_info ""
+end
+
+def gopher_info(text)
+  puts "i#{text}\t\tnull.host\t1"
+end
+
+def gopher_link(type: 1, text:, query:)
+  puts "#{type.to_s}#{text}\t#{@selector}?#{query}\t#{@this_host}\t#{@this_port}"
+end
+
+def decode_querystr(query_string)
+  return {} unless query_string != ''
+  # TODO: looking for a = is a hack that'll fail if someone searches for something including a =
+  if(!query_string.include? '=') then
+    # searches just pass the search text itself
+    return {'search' => query_string}
+  else
+    query_string.split('&').map {|str| str.split('=')}.to_h 
+  end
+end
+
+api = BofOMatic::ApiV1.new(url: URL, apikey: BOM_APIKEY)
+decoded_query = decode_querystr(query_string)
+
+if(decoded_query.include? 'search') then
+  gopher_title "BoF-O-Matic - Search Proposals for '#{decoded_query['search']}'"
+  
+  api.proposals.each do |id, proposal|
+    next unless proposal.title.downcase.include? decoded_query['search'].downcase
+    title = proposal.title
+    title += " - Scheduled!" if proposal.scheduled
+    puts build_link(type: 0, text: title, query: "view=proposals&id=#{id}")
+  end
+  puts "."
+elsif(!query_string.include? 'view') then
+  gopher_title "BoF-O-Matic"
+  gopher_link text: "View all proposals", query: "view=proposals"
+  gopher_link text: "View not-yet-scheduled proposals", query: "view=proposals&filter=unscheduled"
+  gopher_link text: "View scheduled proposals", query: "view=proposals&filter=scheduled"
+  puts "."
+elsif(decoded_query['view'] == 'proposals' && decoded_query.include?('id')) then
+  id = decoded_query['id']
+  proposal = api.proposals[id.to_i]
+  puts <<~EOF
+    BoF-O-Matic - View Proposal #{id}
+  
+    Session: #{proposal.title}
+    Details: #{proposal.description}
+
+    Submitted By: #{proposal.submitted_by}
+
+    Interest from:
+  EOF
+  puts " None yet!" if proposal.interest == []
+  proposal.interest.each do |i|
+    puts " - #{i.name}"
+  end
+  puts ""
+  if(proposal.scheduled) then
+    puts <<~EOF
+      This session has been scheduled!
+      Start time: #{proposal.start_time}
+      Room: #{proposal.room}
+    EOF
+  else
+    puts "This proposed session is not yet scheduled."
+  end
+elsif(decoded_query['view'] == 'proposals' && decoded_query['filter'] && decoded_query['filter'] == 'scheduled') then
+  gopher_title "BoF-O-Matic - View Scheduled Proposals"
+  api.proposals.each do |id, proposal|
+    next unless proposal.scheduled
+    title = "#{proposal.title} - #{proposal.start_time.strftime("%A at %H:%M")} in #{proposal.room}"
+    gopher_link type: 0, text: title, query: "view=proposals&id=#{id}"
+  end
+  puts "."
+elsif(decoded_query['view'] == 'proposals' && decoded_query['filter'] && decoded_query['filter'] == 'unscheduled') then
+  gopher_title "BoF-O-Matic - View Not-yet-scheduled Proposals"
+  api.proposals.each do |id, proposal|
+    next if proposal.scheduled
+    gopher_link type: 0, text: proposal.title, query: "view=proposals&id=#{id}"
+  end
+  puts "."
+elsif(decoded_query['view'] == 'proposals') then
+  gopher_title "BoF-O-Matic - View All Proposals"
+  api.proposals.each do |id, proposal|
+    title = proposal.title
+    title += " - Scheduled!" if proposal.scheduled
+    gopher_link type: 0, text: title, query: "view=proposals&id=#{id}"
+  end
+  puts "."
+end

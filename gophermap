@@ -1,0 +1,7 @@
+Welcome to the BoF-O-Matic Gopher System!
+
+1View all proposed sessions	cgi-bin/bof-o-matic?view=proposals
+1View scheduled sessions	cgi-bin/bof-o-matic?view=proposals&filter=scheduled
+1View not-yet-scheduled sessions	cgi-bin/bof-o-matic?view=proposals&filter=unscheduled
+7Search sessions	cgi-bin/bof-o-matic
+
