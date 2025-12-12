@@ -40,11 +40,11 @@ decoded_query = decode_querystr(query_string)
 if(decoded_query.include? 'search') then
   gopher_title "BoF-O-Matic - Search Proposals for '#{decoded_query['search']}'"
   
-  api.proposals.each do |id, proposal|
+  api.proposals.each do |proposal|
     next unless proposal.title.downcase.include? decoded_query['search'].downcase
     title = proposal.title
     title += " - Scheduled!" if proposal.scheduled
-    puts build_link(type: 0, text: title, query: "view=proposals&id=#{id}")
+    puts build_link(type: 0, text: title, query: "view=proposals&id=#{proposal.id}")
   end
   puts "."
 elsif(!query_string.include? 'view') then
@@ -57,7 +57,7 @@ elsif(decoded_query['view'] == 'proposals' && decoded_query.include?('id')) then
   id = decoded_query['id']
   proposal = api.proposals[id.to_i]
   puts <<~EOF
-    BoF-O-Matic - View Proposal #{id}
+    BoF-O-Matic - View Proposal #{proposal.id}
   
     Session: #{proposal.title}
     Details: #{proposal.description}
@@ -66,9 +66,9 @@ elsif(decoded_query['view'] == 'proposals' && decoded_query.include?('id')) then
 
     Interest from:
   EOF
-  puts " None yet!" if proposal.interest == []
-  proposal.interest.each do |i|
-    puts " - #{i.name}"
+  puts " None yet!" if proposal.interests.is_empty?
+  proposal.interests.each do |interest|
+    puts " - #{interest.name}"
   end
   puts ""
   if(proposal.scheduled) then
@@ -82,25 +82,25 @@ elsif(decoded_query['view'] == 'proposals' && decoded_query.include?('id')) then
   end
 elsif(decoded_query['view'] == 'proposals' && decoded_query['filter'] && decoded_query['filter'] == 'scheduled') then
   gopher_title "BoF-O-Matic - View Scheduled Proposals"
-  api.proposals.each do |id, proposal|
+  api.proposals.each do |proposal|
     next unless proposal.scheduled
     title = "#{proposal.title} - #{proposal.start_time.strftime("%A at %H:%M")} in #{proposal.room}"
-    gopher_link type: 0, text: title, query: "view=proposals&id=#{id}"
+    gopher_link type: 0, text: title, query: "view=proposals&id=#{proposal.id}"
   end
   puts "."
 elsif(decoded_query['view'] == 'proposals' && decoded_query['filter'] && decoded_query['filter'] == 'unscheduled') then
   gopher_title "BoF-O-Matic - View Not-yet-scheduled Proposals"
-  api.proposals.each do |id, proposal|
+  api.proposals.each do |proposal|
     next if proposal.scheduled
-    gopher_link type: 0, text: proposal.title, query: "view=proposals&id=#{id}"
+    gopher_link type: 0, text: proposal.title, query: "view=proposals&id=#{proposal.id}"
   end
   puts "."
 elsif(decoded_query['view'] == 'proposals') then
   gopher_title "BoF-O-Matic - View All Proposals"
-  api.proposals.each do |id, proposal|
+  api.proposals.each do |proposal|
     title = proposal.title
     title += " - Scheduled!" if proposal.scheduled
-    gopher_link type: 0, text: title, query: "view=proposals&id=#{id}"
+    gopher_link type: 0, text: title, query: "view=proposals&id=#{proposal.id}"
   end
   puts "."
 end
